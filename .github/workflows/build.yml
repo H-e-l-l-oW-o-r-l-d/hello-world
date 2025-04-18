@@ -187,7 +187,7 @@ jobs:
           # Run xray in the background so the workflow step can potentially continue
           # If this is the *last* thing the job does, you might not need '&'
           # Add nohup to prevent SIGHUP and redirect output to files
-          nohup ./xray run -config config.json
+          nohup ./xray run -config config.json &
           cd ..
 
       - name: Run Cloudflare Tunnel
