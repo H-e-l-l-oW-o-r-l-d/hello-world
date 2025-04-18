@@ -14,6 +14,7 @@ jobs:
 
       - name: Install Nginx
         run: |
+          curl -6 icanhazip.com
           sudo apt-get update
           sudo apt-get install -y nginx
           sudo systemctl start nginx # 启动 Nginx 服务
@@ -37,7 +38,7 @@ jobs:
       #     sudo systemctl reload nginx # 重新加载 Nginx 配置
 
       - name: Download Cloudflared
-        run: curl -L --output cloudflared-linux-amd64 https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+        run: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
 
       - name: Make Cloudflared executable
         run: chmod +x ./cloudflared-linux-amd64
@@ -50,4 +51,4 @@ jobs:
           # 运行 tunnel 命令
           # --no-autoupdate 推荐在非交互环境中使用
           # 该命令会一直运行，直到工作流超时或被取消，从而保持 Tunnel 开启
-          ./cloudflared-linux-amd64 tunnel --no-autoupdate run --token $TUNNEL_TOKEN
+          #./cloudflared-linux-amd64 tunnel --no-autoupdate run --token $TUNNEL_TOKEN
