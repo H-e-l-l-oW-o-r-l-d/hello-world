@@ -29,16 +29,6 @@ jobs:
           network_id: ${{ secrets.ZEROTIER_NETWORK_ID }}
           auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
           
-      - name: ping host
-        shell: bash
-        run: |
-          count=10
-          while ! ping -c 1 ${{ secrets.ZEROTIER_HOST_IP }} ; do
-            echo "waiting..." ;
-            sleep 1 ;
-            let count=count-1
-          done
-          echo "ping success"
       # --- （可选）配置 Nginx 服务你的网站内容 ---
       # 如果你的 HTML/CSS/JS 文件在仓库的 'public' 目录下
       # - name: Copy website files to Nginx root
@@ -50,19 +40,156 @@ jobs:
       #     sudo cp ./nginx.conf /etc/nginx/sites-available/default
       #     sudo nginx -t # 测试配置是否有效
       #     sudo systemctl reload nginx # 重新加载 Nginx 配置
+      - name: Setup Xray
+        env:
+          XRAY_UUID_SECRET: ${{ secrets.XRAY_UUID }}
+        run: |
+          # Check if UUID secret is set
+          if [ -z "$XRAY_UUID_SECRET" ]; then
+            echo "::error:: XRAY_UUID secret is not set. Please configure it in your repository settings."
+            exit 1
+          fi
 
-      - name: Download Cloudflared
-        run: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          echo "Downloading latest Xray-core for Linux (64-bit)..."
+          curl -L -o xray-linux-64.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          if [ $? -ne 0 ]; then
+            echo "::error:: Failed to download Xray-core."
+            exit 1
+          fi
 
-      - name: Make Cloudflared executable
-        run: chmod +x ./cloudflared-linux-amd64
+          echo "Unzipping Xray-core..."
+          unzip xray-linux-64.zip
+          # Since there are no subdirectories, files (xray, geoip.dat, geosite.dat) are extracted here
+          if [ $? -ne 0 ]; then
+            echo "::error:: Failed to unzip Xray-core."
+            exit 1
+          fi
+          rm xray-linux-64.zip # Clean up the zip file
+
+          echo "Generating config.json..."
+          # Use jq to safely insert the UUID into the JSON template
+          # Ensure jq is installed (it usually is on ubuntu-latest runners)
+          if ! command -v jq &> /dev/null; then
+             echo "jq could not be found, installing..."
+             sudo apt-get update && sudo apt-get install -y jq
+          fi
+
+          # Define the config template using a heredoc and pipe it to jq
+          jq --arg uuid "$XRAY_UUID_SECRET" '.inbounds[0].settings.clients[0].id = $uuid' <<'EOF' > config.json
+          {
+            "log": {
+              "loglevel": "info"
+            },
+            "inbounds": [
+              {
+                "port": 8080,
+                "protocol": "vless",
+                "allocate": {
+                  "strategy": "always"
+                },
+                "settings": {
+                  "clients": [
+                    {
+                      "id": "", // Placeholder will be replaced by jq
+                      "level": 1,
+                      "alterId": 0
+                    }
+                  ],
+                  "disableInsecureEncryption": true
+                },
+                "streamSettings": {
+                  "network": "ws",
+                  "wsSettings": {
+                    "connectionReuse": true,
+                    "path": "/message"
+                  },
+                  "security": "none",
+                  "tcpSettings": {
+                    "header": {
+                      "type": "http",
+                      "response": {
+                        "version": "1.1",
+                        "status": "200",
+                        "reason": "OK",
+                        "headers": {
+                          "Content-Type": [
+                            "application/octet-stream",
+                            "application/x-msdownload",
+                            "text/html",
+                            "application/x-shockwave-flash"
+                          ],
+                          "Transfer-Encoding": ["chunked"],
+                          "Connection": ["keep-alive"],
+                          "Pragma": "no-cache"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "outbounds": [
+              {
+                "protocol": "freedom",
+                "settings": {}
+              },
+              {
+                "protocol": "blackhole",
+                "settings": {},
+                "tag": "blocked"
+              }
+            ],
+            "routing": {
+              "domainStrategy": "AsIs",
+              "rules": [
+                {
+                  "type": "field",
+                  "ip": [
+                    "0.0.0.0/8",
+                    "10.0.0.0/8",
+                    "100.64.0.0/10",
+                    "127.0.0.0/8",
+                    "169.254.0.0/16",
+                    "172.16.0.0/12",
+                    "192.0.0.0/24",
+                    "192.0.2.0/24",
+                    "192.168.0.0/16",
+                    "198.18.0.0/15",
+                    "198.51.100.0/24",
+                    "203.0.113.0/24",
+                    "::1/128",
+                    "fc00::/7",
+                    "fe80::/10",
+                    "geoip:private"
+                  ],
+                  "outboundTag": "blocked"
+                }
+              ]
+            }
+          }
+          EOF
+
+          if [ ! -f config.json ]; then
+             echo "::error:: Failed to generate config.json"
+             exit 1
+          fi
+          echo "config.json generated successfully."
+          # Optional: Display the generated config (excluding sensitive parts if needed)
+          # cat config.json
+
+          echo "Making xray executable..."
+          chmod +x xray
+
+          echo "Starting Xray..."
+          # Run xray in the background so the workflow step can potentially continue
+          # If this is the *last* thing the job does, you might not need '&'
+          # Add nohup to prevent SIGHUP and redirect output to files
+          nohup ./xray run -config config.json
 
       - name: Run Cloudflare Tunnel
         env:
-          # 从 GitHub Secrets 读取 Token
           TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
         run: |
-          # 运行 tunnel 命令
-          # --no-autoupdate 推荐在非交互环境中使用
-          # 该命令会一直运行，直到工作流超时或被取消，从而保持 Tunnel 开启
-          #./cloudflared-linux-amd64 tunnel --no-autoupdate run --token $TUNNEL_TOKEN
+          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared-linux-amd64
+          ./cloudflared-linux-amd64 tunnel --no-autoupdate run --token $TUNNEL_TOKEN
