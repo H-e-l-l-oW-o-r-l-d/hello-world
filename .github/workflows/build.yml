@@ -90,6 +90,7 @@ jobs:
                   "strategy": "always"
                 },
                 "settings": {
+                  "decryption":"none",
                   "clients": [
                     {
                       "id": "",
