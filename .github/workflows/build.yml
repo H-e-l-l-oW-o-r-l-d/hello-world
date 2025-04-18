@@ -1,30 +1,53 @@
-# This is a basic workflow to help you get started with Actions
+name: Deploy Temporary site
 
-name: CI
-
-# Controls when the workflow will run
+# 触发器：可以手动触发此工作流
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch: # 允许从 Actions 标签页手动运行
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest # 使用最新的 Ubuntu Runner
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Checkout repository # 如果你的网站文件在仓库中，需要这一步
+        uses: actions/checkout@v4
 
-      - name: Run a multi-line script
+      - name: Install Nginx
         run: |
-          curl https://ifconfig.me/
+          sudo apt-get update
+          sudo apt-get install -y nginx
+          sudo systemctl start nginx # 启动 Nginx 服务
+          # 或者使用: sudo service nginx start
+
+      - name: Verify Nginx is running (Optional)
+        run: |
+          curl localhost # 应该能看到 Nginx 的欢迎页面（或你的页面，如果已配置）
+          sudo service nginx status
+
+      # --- （可选）配置 Nginx 服务你的网站内容 ---
+      # 如果你的 HTML/CSS/JS 文件在仓库的 'public' 目录下
+      # - name: Copy website files to Nginx root
+      #   run: sudo cp -r ./public/* /var/www/html/
+      #
+      # 或者，如果你有自定义的 Nginx 配置文件在仓库的 'nginx.conf'
+      # - name: Setup custom Nginx configuration
+      #   run: |
+      #     sudo cp ./nginx.conf /etc/nginx/sites-available/default
+      #     sudo nginx -t # 测试配置是否有效
+      #     sudo systemctl reload nginx # 重新加载 Nginx 配置
+
+      - name: Download Cloudflared
+        run: curl -L --output cloudflared-linux-amd64 https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+
+      - name: Make Cloudflared executable
+        run: chmod +x ./cloudflared-linux-amd64
+
+      - name: Run Cloudflare Tunnel
+        env:
+          # 从 GitHub Secrets 读取 Token
+          TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+        run: |
+          # 运行 tunnel 命令
+          # --no-autoupdate 推荐在非交互环境中使用
+          # 该命令会一直运行，直到工作流超时或被取消，从而保持 Tunnel 开启
+          ./cloudflared-linux-amd64 tunnel --no-autoupdate run --token $TUNNEL_TOKEN
