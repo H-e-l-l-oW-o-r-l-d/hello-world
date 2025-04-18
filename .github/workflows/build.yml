@@ -14,7 +14,6 @@ jobs:
 
       - name: Install Nginx
         run: |
-          curl -6 icanhazip.com
           sudo apt-get update
           sudo apt-get install -y nginx
           sudo systemctl start nginx # 启动 Nginx 服务
@@ -22,9 +21,24 @@ jobs:
 
       - name: Verify Nginx is running (Optional)
         run: |
-          curl localhost # 应该能看到 Nginx 的欢迎页面（或你的页面，如果已配置）
+          curl localhost > /dev/null
           sudo service nginx status
-
+      - name: ZeroTier
+        uses: zerotier/github-action@v1.0.1
+        with:
+          network_id: ${{ secrets.ZEROTIER_NETWORK_ID }}
+          auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
+          
+      - name: ping host
+        shell: bash
+        run: |
+          count=10
+          while ! ping -c 1 ${{ secrets.ZEROTIER_HOST_IP }} ; do
+            echo "waiting..." ;
+            sleep 1 ;
+            let count=count-1
+          done
+          echo "ping success"
       # --- （可选）配置 Nginx 服务你的网站内容 ---
       # 如果你的 HTML/CSS/JS 文件在仓库的 'public' 目录下
       # - name: Copy website files to Nginx root
