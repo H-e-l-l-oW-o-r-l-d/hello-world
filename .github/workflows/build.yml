@@ -92,7 +92,7 @@ jobs:
                 "settings": {
                   "clients": [
                     {
-                      "id": "", // Placeholder will be replaced by jq
+                      "id": "",
                       "level": 1,
                       "alterId": 0
                     }
