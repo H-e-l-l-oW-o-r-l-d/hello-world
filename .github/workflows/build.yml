@@ -38,6 +38,7 @@ jobs:
       - name: Setup Xray
         env:
           XRAY_UUID_SECRET: ${{ secrets.XRAY_UUID }}
+          XRAY_WS_PATH_SECRET: ${{ secrets.XRAY_WS_PATH }}
         run: |
           if [ -z "$XRAY_UUID_SECRET" ]; then
             echo "::error:: XRAY_UUID secret is not set. Please configure it in your repository settings."
@@ -70,7 +71,7 @@ jobs:
 
           # Define the config template using a heredoc and pipe it to jq
           jq --arg uuid "$XRAY_UUID_SECRET" \
-          --arg ws_path "$XRAY_WS_PATH" \
+          --arg ws_path "$XRAY_WS_PATH_SECRET" \
           '.inbounds[0].settings.clients[0].id = $uuid | .inbounds[0].streamSettings.wsSettings.path = $ws_path' <<'EOF' > config.json
           {
             "log": { "loglevel": "info" },
