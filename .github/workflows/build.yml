@@ -85,11 +85,10 @@ jobs:
           echo "Disabling ChallengeResponseAuthentication..."
           sudo sed -i 's/^[#[:space:]]*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项，则追加它
-          if ! grep -q "^ChallengeResponseAuthentication no" "${TARGET_SSH_CONFIG}"; then
+          if ! sudo grep -q "^ChallengeResponseAuthentication no" "${TARGET_SSH_CONFIG}"; then
               sudo echo "ChallengeResponseAuthentication no" >> "${TARGET_SSH_CONFIG}"
           fi
           
-          # --- 重启 SSH 服务 ---
           echo "Restarting SSH service..."
           sudo systemctl restart sshd
 
