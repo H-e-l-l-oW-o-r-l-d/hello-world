@@ -47,7 +47,7 @@ jobs:
           cd xray
 
           echo "Downloading latest Xray-core for Linux (64-bit)..."
-          wget -O xray-linux-64.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          wget --progress=bar:force:noscroll -O xray-linux-64.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
           if [ $? -ne 0 ]; then
             echo "::error:: Failed to download Xray-core."
             exit 1
@@ -69,7 +69,9 @@ jobs:
           fi
 
           # Define the config template using a heredoc and pipe it to jq
-          jq --arg uuid "$XRAY_UUID_SECRET" '.inbounds[0].settings.clients[0].id = $uuid' <<'EOF' > config.json
+          jq --arg uuid "$XRAY_UUID_SECRET" \
+          --arg ws_path "$XRAY_WS_PATH" \
+          '.inbounds[0].settings.clients[0].id = $uuid | .inbounds[0].streamSettings.wsSettings.path = $ws_path' <<'EOF' > config.json
           {
             "log": { "loglevel": "info" },
             "inbounds": [
@@ -85,7 +87,7 @@ jobs:
                   "network": "ws",
                   "wsSettings": {
                     "connectionReuse": true,
-                    "path": "/message"
+                    "path": "/"
                   },
                   "security": "none",
                   "tcpSettings": {
@@ -133,6 +135,6 @@ jobs:
         env:
           TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
         run: |
-          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          wget --progress=bar:force:noscroll https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           chmod +x cloudflared-linux-amd64
           ./cloudflared-linux-amd64 tunnel --no-autoupdate run --token $TUNNEL_TOKEN
