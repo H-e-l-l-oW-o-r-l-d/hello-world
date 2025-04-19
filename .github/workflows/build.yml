@@ -13,7 +13,59 @@ jobs:
           sudo apt update
           sudo apt install -y nginx
           sudo mv /var/www/html/index.nginx-debian.html /var/www/html/index.html
-          sudo service nginx status
+
+          NGINX_CONF=$(cat <<'EOF'
+          server {
+              listen 80 default_server;
+          
+              root /var/www/html;
+              index index.html index.htm index.nginx-debian.html;
+          
+              server_name _;
+          
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          
+              location /api/ {
+                  # proxy_pass 到 127.0.0.1:8080/
+                  # 注意末尾的 / 非常重要，它会去除请求中的 /api/ 前缀
+                  # 例如: /api/users -> http://127.0.0.1:8080/users
+                  proxy_pass http://127.0.0.1:8080/;
+          
+                  # --- WebSocket 支持 ---
+                  # 设置必要的头信息以升级连接到 WebSocket
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+          
+                  # --- 传递客户端真实信息 ---
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+          
+                  # 可选：增加超时时间，对于长连接或 WebSocket 可能有用
+                  # proxy_connect_timeout 60s;
+                  # proxy_send_timeout 60s;
+                  proxy_read_timeout 300s;
+              }
+          }
+          EOF
+          )
+
+          # 3. 备份默认配置，将配置写入 Nginx 默认站点文件
+          # 使用 tee 将变量内容写入文件，同时需要 sudo 权限
+          # > /dev/null 是为了避免将内容也输出到标准输出
+          sudo mv /etc/nginx/sites-available/default ~
+          echo "$NGINX_CONF" | sudo tee /etc/nginx/sites-available/default > /dev/null
+          sudo nginx -t
+          if [ $? -ne 0 ]; then
+            echo "Nginx configuration test failed!"
+            exit 1
+          fi
+          
           sudo systemctl start nginx
           sudo service nginx status
           
