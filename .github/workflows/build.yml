@@ -54,8 +54,8 @@ jobs:
           
           echo "Configuring ${TARGET_SSH_CONFIG}..."
           
-          # 备份原始配置文件（可选但推荐）
-          cp "${TARGET_SSH_CONFIG}" "${TARGET_SSH_CONFIG}.bak_$(date +%F_%T)"
+          # 备份原始配置文件
+          sudo cp "${TARGET_SSH_CONFIG}" "${TARGET_SSH_CONFIG}.bak_$(date +%F_%T)"
           
           # 启用公钥认证
           # 使用 sed 修改配置。-i 表示直接修改文件。
@@ -66,32 +66,32 @@ jobs:
           #   .*            - 匹配该行的剩余部分
           #   PubkeyAuthentication yes - 替换为的内容
           echo "Ensuring PubkeyAuthentication is enabled..."
-          sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' "${TARGET_SSH_CONFIG}"
+          sudo sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项 (可能文件中完全没有这一行)，则追加它
           if ! grep -q "^PubkeyAuthentication yes" "${TARGET_SSH_CONFIG}"; then
-              echo "PubkeyAuthentication yes" >> "${TARGET_SSH_CONFIG}"
+              sudo echo "PubkeyAuthentication yes" >> "${TARGET_SSH_CONFIG}"
           fi
           
           
           # 禁用密码认证
           echo "Disabling PasswordAuthentication..."
-          sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' "${TARGET_SSH_CONFIG}"
+          sudo sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项，则追加它
           if ! grep -q "^PasswordAuthentication no" "${TARGET_SSH_CONFIG}"; then
-              echo "PasswordAuthentication no" >> "${TARGET_SSH_CONFIG}"
+              sudo echo "PasswordAuthentication no" >> "${TARGET_SSH_CONFIG}"
           fi
           
           # 禁用挑战-响应认证 (这通常也涵盖了 PAM 等基于密码的交互式登录)
           echo "Disabling ChallengeResponseAuthentication..."
-          sed -i 's/^[#[:space:]]*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "${TARGET_SSH_CONFIG}"
+          sudo sed -i 's/^[#[:space:]]*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项，则追加它
           if ! grep -q "^ChallengeResponseAuthentication no" "${TARGET_SSH_CONFIG}"; then
-              echo "ChallengeResponseAuthentication no" >> "${TARGET_SSH_CONFIG}"
+              sudo echo "ChallengeResponseAuthentication no" >> "${TARGET_SSH_CONFIG}"
           fi
           
           # --- 重启 SSH 服务 ---
           echo "Restarting SSH service..."
-          systemctl restart sshd
+          sudo systemctl restart sshd
 
           echo "Adding public key to ${TARGET_AUTH_KEYS_FILE}..."
           mkdir -p "${TARGET_USER_HOME}/.ssh"
