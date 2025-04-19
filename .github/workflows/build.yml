@@ -44,6 +44,10 @@ jobs:
             echo "::error:: XRAY_UUID secret is not set. Please configure it in your repository settings."
             exit 1
           fi
+          if [ -z "$XRAY_WS_PATH_SECRET" ]; then
+            echo "::error:: XRAY_WS_PATH is not set. Please configure it (e.g., in repository settings or environment)."
+            exit 1
+          fi
           mkdir xray
           cd xray
 
