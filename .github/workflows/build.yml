@@ -81,14 +81,6 @@ jobs:
               sudo echo "PasswordAuthentication no" >> "${TARGET_SSH_CONFIG}"
           fi
           
-          # 禁用挑战-响应认证 (这通常也涵盖了 PAM 等基于密码的交互式登录)
-          echo "Disabling ChallengeResponseAuthentication..."
-          sudo sed -i 's/^[#[:space:]]*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "${TARGET_SSH_CONFIG}"
-          # 如果上面 sed 没有找到匹配项，则追加它
-          if ! sudo grep -q "^ChallengeResponseAuthentication no" "${TARGET_SSH_CONFIG}"; then
-              sudo echo "ChallengeResponseAuthentication no" >> "${TARGET_SSH_CONFIG}"
-          fi
-          
           echo "Restarting SSH service..."
           sudo systemctl restart sshd
 
