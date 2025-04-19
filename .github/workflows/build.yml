@@ -16,10 +16,10 @@ jobs:
 
           NGINX_CONF=$(cat <<'EOF'
           server {
-              listen 80 default_server;
+              listen 127.0.0.1:80 default_server;
           
               root /var/www/html;
-              index index.html index.htm index.nginx-debian.html;
+              index index.html index.htm;
           
               server_name _;
           
@@ -28,25 +28,15 @@ jobs:
               }
           
               location /api/ {
-                  # proxy_pass 到 127.0.0.1:8080/
-                  # 注意末尾的 / 非常重要，它会去除请求中的 /api/ 前缀
-                  # 例如: /api/users -> http://127.0.0.1:8080/users
-                  proxy_pass http://127.0.0.1:8080/;
+                  proxy_pass http://127.0.0.1:8080;
           
-                  # --- WebSocket 支持 ---
-                  # 设置必要的头信息以升级连接到 WebSocket
                   proxy_http_version 1.1;
                   proxy_set_header Upgrade $http_upgrade;
                   proxy_set_header Connection "upgrade";
           
-                  # --- 传递客户端真实信息 ---
                   proxy_set_header Host $host;
                   proxy_cache_bypass $http_upgrade;
-                  proxy_set_header X-Real-IP $remote_addr;
-                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto $scheme;
           
-                  # 可选：增加超时时间，对于长连接或 WebSocket 可能有用
                   # proxy_connect_timeout 60s;
                   # proxy_send_timeout 60s;
                   proxy_read_timeout 300s;
