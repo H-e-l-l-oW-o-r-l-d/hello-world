@@ -50,7 +50,7 @@ jobs:
           SSH_PUBLIC_KEY="${!EXPECTED_PUBKEY_VAR}"
 
           echo "Installing OpenSSH Server..."
-          apt install -y openssh-server
+          sudo apt install -y openssh-server
           
           echo "Configuring ${TARGET_SSH_CONFIG}..."
           
