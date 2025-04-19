@@ -100,7 +100,7 @@ jobs:
           sudo sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项 (可能文件中完全没有这一行)，则追加它
           if ! grep -q "^PubkeyAuthentication yes" "${TARGET_SSH_CONFIG}"; then
-              echo "PubkeyAuthentication yes" >> "${TARGET_SSH_CONFIG}"
+              echo "PubkeyAuthentication yes" | sudo tee -a "${TARGET_SSH_CONFIG}" > /dev/null
           fi
           
           
@@ -109,7 +109,7 @@ jobs:
           sudo sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项，则追加它
           if ! grep -q "^PasswordAuthentication no" "${TARGET_SSH_CONFIG}"; then
-               echo "PasswordAuthentication no" >> "${TARGET_SSH_CONFIG}"
+               echo "PasswordAuthentication no" | sudo tee -a "${TARGET_SSH_CONFIG}" > /dev/null
           fi
           
           echo "Restarting SSH service..."
