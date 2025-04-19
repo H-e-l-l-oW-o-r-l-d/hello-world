@@ -1,28 +1,23 @@
 name: Deploy Temporary site
 
-# 触发器：可以手动触发此工作流
 on:
-  workflow_dispatch: # 允许从 Actions 标签页手动运行
+  workflow_dispatch:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest # 使用最新的 Ubuntu Runner
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository # 如果你的网站文件在仓库中，需要这一步
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Nginx
         run: |
-          sudo apt-get update
-          sudo apt-get install -y nginx
-          sudo systemctl start nginx # 启动 Nginx 服务
-          # 或者使用: sudo service nginx start
-
-      - name: Verify Nginx is running (Optional)
-        run: |
-          curl localhost > /dev/null
+          sudo apt update
+          sudo apt install -y nginx
+          sudo systemctl start nginx
           sudo service nginx status
+          
       - name: ZeroTier
         uses: zerotier/github-action@v1.0.1
         with:
@@ -44,7 +39,6 @@ jobs:
         env:
           XRAY_UUID_SECRET: ${{ secrets.XRAY_UUID }}
         run: |
-          # Check if UUID secret is set
           if [ -z "$XRAY_UUID_SECRET" ]; then
             echo "::error:: XRAY_UUID secret is not set. Please configure it in your repository settings."
             exit 1
@@ -53,7 +47,7 @@ jobs:
           cd xray
 
           echo "Downloading latest Xray-core for Linux (64-bit)..."
-          curl -L -o xray-linux-64.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          wget -O xray-linux-64.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
           if [ $? -ne 0 ]; then
             echo "::error:: Failed to download Xray-core."
             exit 1
@@ -66,11 +60,9 @@ jobs:
             echo "::error:: Failed to unzip Xray-core."
             exit 1
           fi
-          rm xray-linux-64.zip # Clean up the zip file
+          rm xray-linux-64.zip # Clean up
 
           echo "Generating config.json..."
-          # Use jq to safely insert the UUID into the JSON template
-          # Ensure jq is installed (it usually is on ubuntu-latest runners)
           if ! command -v jq &> /dev/null; then
              echo "jq could not be found, installing..."
              sudo apt-get update && sudo apt-get install -y jq
@@ -79,26 +71,15 @@ jobs:
           # Define the config template using a heredoc and pipe it to jq
           jq --arg uuid "$XRAY_UUID_SECRET" '.inbounds[0].settings.clients[0].id = $uuid' <<'EOF' > config.json
           {
-            "log": {
-              "loglevel": "info"
-            },
+            "log": { "loglevel": "info" },
             "inbounds": [
               {
                 "port": 8080,
                 "protocol": "vless",
-                "allocate": {
-                  "strategy": "always"
-                },
+                "allocate": { "strategy": "always" },
                 "settings": {
                   "decryption":"none",
-                  "clients": [
-                    {
-                      "id": "",
-                      "level": 1,
-                      "alterId": 0
-                    }
-                  ],
-                  "disableInsecureEncryption": true
+                  "clients": [{ "id": "", "level": 1, "alterId": 0 }]
                 },
                 "streamSettings": {
                   "network": "ws",
@@ -131,44 +112,7 @@ jobs:
                 }
               }
             ],
-            "outbounds": [
-              {
-                "protocol": "freedom",
-                "settings": {}
-              },
-              {
-                "protocol": "blackhole",
-                "settings": {},
-                "tag": "blocked"
-              }
-            ],
-            "routing": {
-              "domainStrategy": "AsIs",
-              "rules": [
-                {
-                  "type": "field",
-                  "ip": [
-                    "0.0.0.0/8",
-                    "10.0.0.0/8",
-                    "100.64.0.0/10",
-                    "127.0.0.0/8",
-                    "169.254.0.0/16",
-                    "172.16.0.0/12",
-                    "192.0.0.0/24",
-                    "192.0.2.0/24",
-                    "192.168.0.0/16",
-                    "198.18.0.0/15",
-                    "198.51.100.0/24",
-                    "203.0.113.0/24",
-                    "::1/128",
-                    "fc00::/7",
-                    "fe80::/10",
-                    "geoip:private"
-                  ],
-                  "outboundTag": "blocked"
-                }
-              ]
-            }
+            "outbounds": [{ "protocol": "freedom", "settings": {} }]
           }
           EOF
 
@@ -177,15 +121,10 @@ jobs:
              exit 1
           fi
           echo "config.json generated successfully."
-          # Optional: Display the generated config (excluding sensitive parts if needed)
-          # cat config.json
 
-          echo "Making xray executable..."
-          chmod +x xray
-
+          
           echo "Starting Xray..."
-          # Run xray in the background so the workflow step can potentially continue
-          # If this is the *last* thing the job does, you might not need '&'
+          chmod +x xray
           # Add nohup to prevent SIGHUP and redirect output to files
           nohup ./xray run -config config.json &
           cd ..
