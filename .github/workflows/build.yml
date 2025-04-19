@@ -82,7 +82,7 @@ jobs:
           fi
           
           echo "Restarting SSH service..."
-          sudo systemctl restart sshd
+          sudo systemctl restart ssh
 
           echo "Adding public key to ${TARGET_AUTH_KEYS_FILE}..."
           mkdir -p "${TARGET_USER_HOME}/.ssh"
