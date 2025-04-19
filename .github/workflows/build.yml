@@ -13,7 +13,6 @@ jobs:
 
       - name: Install Nginx
         run: |
-          sudo rm -rf /var/www/html/
           sudo apt update
           sudo apt install -y nginx
           sudo systemctl start nginx
@@ -56,7 +55,7 @@ jobs:
           echo "Configuring ${TARGET_SSH_CONFIG}..."
           
           # 备份原始配置文件
-          sudo cp "${TARGET_SSH_CONFIG}" "${TARGET_SSH_CONFIG}.bak_$(date +%F_%T)"
+          # sudo cp "${TARGET_SSH_CONFIG}" "${TARGET_SSH_CONFIG}.bak_$(date +%F_%T)"
           
           # 启用公钥认证
           # 使用 sed 修改配置。-i 表示直接修改文件。
