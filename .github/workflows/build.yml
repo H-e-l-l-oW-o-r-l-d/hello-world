@@ -18,12 +18,6 @@ jobs:
           sudo systemctl start nginx
           sudo service nginx status
           
-      - name: ZeroTier
-        uses: zerotier/github-action@v1.0.1
-        with:
-          network_id: ${{ secrets.ZEROTIER_NETWORK_ID }}
-          auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
-          
       # --- （可选）配置 Nginx 服务你的网站内容 ---
       # 如果你的 HTML/CSS/JS 文件在仓库的 'public' 目录下
       # - name: Copy website files to Nginx root
@@ -35,6 +29,80 @@ jobs:
       #     sudo cp ./nginx.conf /etc/nginx/sites-available/default
       #     sudo nginx -t # 测试配置是否有效
       #     sudo systemctl reload nginx # 重新加载 Nginx 配置
+
+
+      - name: Setup SSHD
+        env:
+          SSH_PUBLIC_KEY_SECRET: ${{ secrets.SSHD_AUTHORIZED_KEYS }}
+        run: |
+          EXPECTED_PUBKEY_VAR="SSH_PUBLIC_KEY_SECRET"
+          TARGET_SSH_CONFIG="/etc/ssh/sshd_config"
+
+          TARGET_USER_HOME="~"
+          eval TARGET_USER_HOME="$TARGET_USER_HOME"
+          TARGET_AUTH_KEYS_FILE="${TARGET_USER_HOME}/.ssh/authorized_keys"
+          
+          if [ -z "${!EXPECTED_PUBKEY_VAR}" ]; then
+            echo "::error:: Environment variable ${EXPECTED_PUBKEY_VAR} is not set or empty."
+            echo "Please set it with your SSH public key content before running this script."
+            exit 1
+          fi
+          SSH_PUBLIC_KEY="${!EXPECTED_PUBKEY_VAR}"
+
+          echo "Installing OpenSSH Server..."
+          apt install -y openssh-server
+          
+          echo "Configuring ${TARGET_SSH_CONFIG}..."
+          
+          # 备份原始配置文件（可选但推荐）
+          cp "${TARGET_SSH_CONFIG}" "${TARGET_SSH_CONFIG}.bak_$(date +%F_%T)"
+          
+          # 启用公钥认证
+          # 使用 sed 修改配置。-i 表示直接修改文件。
+          # s/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/ :
+          #   ^             - 行首
+          #   [#[:space:]]* - 匹配可选的 '#' 或空格（处理注释掉或未注释的行）
+          #   PubkeyAuthentication - 匹配指令
+          #   .*            - 匹配该行的剩余部分
+          #   PubkeyAuthentication yes - 替换为的内容
+          echo "Ensuring PubkeyAuthentication is enabled..."
+          sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' "${TARGET_SSH_CONFIG}"
+          # 如果上面 sed 没有找到匹配项 (可能文件中完全没有这一行)，则追加它
+          if ! grep -q "^PubkeyAuthentication yes" "${TARGET_SSH_CONFIG}"; then
+              echo "PubkeyAuthentication yes" >> "${TARGET_SSH_CONFIG}"
+          fi
+          
+          
+          # 禁用密码认证
+          echo "Disabling PasswordAuthentication..."
+          sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' "${TARGET_SSH_CONFIG}"
+          # 如果上面 sed 没有找到匹配项，则追加它
+          if ! grep -q "^PasswordAuthentication no" "${TARGET_SSH_CONFIG}"; then
+              echo "PasswordAuthentication no" >> "${TARGET_SSH_CONFIG}"
+          fi
+          
+          # 禁用挑战-响应认证 (这通常也涵盖了 PAM 等基于密码的交互式登录)
+          echo "Disabling ChallengeResponseAuthentication..."
+          sed -i 's/^[#[:space:]]*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "${TARGET_SSH_CONFIG}"
+          # 如果上面 sed 没有找到匹配项，则追加它
+          if ! grep -q "^ChallengeResponseAuthentication no" "${TARGET_SSH_CONFIG}"; then
+              echo "ChallengeResponseAuthentication no" >> "${TARGET_SSH_CONFIG}"
+          fi
+          
+          # --- 重启 SSH 服务 ---
+          echo "Restarting SSH service..."
+          systemctl restart sshd
+
+          echo "Adding public key to ${TARGET_AUTH_KEYS_FILE}..."
+          mkdir -p "${TARGET_USER_HOME}/.ssh"
+          chmod 700 "${TARGET_USER_HOME}/.ssh"
+          echo "${SSH_PUBLIC_KEY}" >> "${TARGET_AUTH_KEYS_FILE}"
+          chmod 600 "${TARGET_AUTH_KEYS_FILE}"
+          
+          echo "SSHD installation and configuration complete."
+          echo "Target user home: ${TARGET_USER_HOME}"
+          echo "Authorized keys file: ${TARGET_AUTH_KEYS_FILE}"
+      
       - name: Setup Xray
         env:
           XRAY_UUID_SECRET: ${{ secrets.XRAY_UUID }}
@@ -135,6 +203,12 @@ jobs:
           # Add nohup to prevent SIGHUP and redirect output to files
           nohup ./xray run -config config.json &
           cd ..
+
+      - name: ZeroTier
+        uses: zerotier/github-action@v1.0.1
+        with:
+          network_id: ${{ secrets.ZEROTIER_NETWORK_ID }}
+          auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
 
       - name: Run Cloudflare Tunnel
         env:
