@@ -13,6 +13,7 @@ jobs:
 
       - name: Install Nginx
         run: |
+          sudo rm -rf /var/www/html/
           sudo apt update
           sudo apt install -y nginx
           sudo systemctl start nginx
@@ -207,4 +208,4 @@ jobs:
         run: |
           wget --progress=bar:force:noscroll https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           chmod +x cloudflared-linux-amd64
-          ./cloudflared-linux-amd64 tunnel --no-autoupdate run --token $TUNNEL_TOKEN > /dev/null
+          ./cloudflared-linux-amd64 tunnel --loglevel fatal --no-autoupdate run --token $TUNNEL_TOKEN > /dev/null
