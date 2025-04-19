@@ -61,14 +61,6 @@ jobs:
       # 如果你的 HTML/CSS/JS 文件在仓库的 'public' 目录下
       # - name: Copy website files to Nginx root
       #   run: sudo cp -r ./public/* /var/www/html/
-      #
-      # 或者，如果你有自定义的 Nginx 配置文件在仓库的 'nginx.conf'
-      # - name: Setup custom Nginx configuration
-      #   run: |
-      #     sudo cp ./nginx.conf /etc/nginx/sites-available/default
-      #     sudo nginx -t # 测试配置是否有效
-      #     sudo systemctl reload nginx # 重新加载 Nginx 配置
-
 
       - name: Setup SSHD
         env:
@@ -108,7 +100,7 @@ jobs:
           sudo sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项 (可能文件中完全没有这一行)，则追加它
           if ! grep -q "^PubkeyAuthentication yes" "${TARGET_SSH_CONFIG}"; then
-              sudo echo "PubkeyAuthentication yes" >> "${TARGET_SSH_CONFIG}"
+              echo "PubkeyAuthentication yes" >> "${TARGET_SSH_CONFIG}"
           fi
           
           
@@ -117,7 +109,7 @@ jobs:
           sudo sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' "${TARGET_SSH_CONFIG}"
           # 如果上面 sed 没有找到匹配项，则追加它
           if ! grep -q "^PasswordAuthentication no" "${TARGET_SSH_CONFIG}"; then
-              sudo echo "PasswordAuthentication no" >> "${TARGET_SSH_CONFIG}"
+               echo "PasswordAuthentication no" >> "${TARGET_SSH_CONFIG}"
           fi
           
           echo "Restarting SSH service..."
