@@ -45,8 +45,6 @@ jobs:
           EOF
           )
 
-          # 将配置写入 Nginx 默认站点文件
-          # > /dev/null 是为了避免将内容也输出到标准输出
           echo "$NGINX_CONF" | sudo tee /etc/nginx/sites-available/default > /dev/null
           sudo nginx -t
           if [ $? -ne 0 ]; then
@@ -98,18 +96,21 @@ jobs:
           #   PubkeyAuthentication yes - 替换为的内容
           echo "Ensuring PubkeyAuthentication is enabled..."
           sudo sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' "${TARGET_SSH_CONFIG}"
-          # 如果上面 sed 没有找到匹配项 (可能文件中完全没有这一行)，则追加它
           if ! grep -q "^PubkeyAuthentication yes" "${TARGET_SSH_CONFIG}"; then
               echo "PubkeyAuthentication yes" | sudo tee -a "${TARGET_SSH_CONFIG}" > /dev/null
           fi
           
-          
           # 禁用密码认证
           echo "Disabling PasswordAuthentication..."
           sudo sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' "${TARGET_SSH_CONFIG}"
-          # 如果上面 sed 没有找到匹配项，则追加它
           if ! grep -q "^PasswordAuthentication no" "${TARGET_SSH_CONFIG}"; then
                echo "PasswordAuthentication no" | sudo tee -a "${TARGET_SSH_CONFIG}" > /dev/null
+          fi
+
+          echo "Disabling ChallengeResponseAuthentication..."
+          sudo sed -i 's/^[#[:space:]]*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "${TARGET_SSH_CONFIG}"
+          if ! grep -q "^ChallengeResponseAuthentication no" "${TARGET_SSH_CONFIG}"; then
+              echo "ChallengeResponseAuthentication no" | sudo tee -a "${TARGET_SSH_CONFIG}" > /dev/null
           fi
           
           echo "Restarting SSH service..."
