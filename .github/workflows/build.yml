@@ -83,24 +83,12 @@ jobs:
           
           echo "Configuring ${TARGET_SSH_CONFIG}..."
           
-          # 备份原始配置文件
-          # sudo cp "${TARGET_SSH_CONFIG}" "${TARGET_SSH_CONFIG}.bak_$(date +%F_%T)"
-          
-          # 启用公钥认证
-          # 使用 sed 修改配置。-i 表示直接修改文件。
-          # s/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/ :
-          #   ^             - 行首
-          #   [#[:space:]]* - 匹配可选的 '#' 或空格（处理注释掉或未注释的行）
-          #   PubkeyAuthentication - 匹配指令
-          #   .*            - 匹配该行的剩余部分
-          #   PubkeyAuthentication yes - 替换为的内容
           echo "Ensuring PubkeyAuthentication is enabled..."
           sudo sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' "${TARGET_SSH_CONFIG}"
           if ! grep -q "^PubkeyAuthentication yes" "${TARGET_SSH_CONFIG}"; then
               echo "PubkeyAuthentication yes" | sudo tee -a "${TARGET_SSH_CONFIG}" > /dev/null
           fi
           
-          # 禁用密码认证
           echo "Disabling PasswordAuthentication..."
           sudo sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' "${TARGET_SSH_CONFIG}"
           if ! grep -q "^PasswordAuthentication no" "${TARGET_SSH_CONFIG}"; then
@@ -143,20 +131,20 @@ jobs:
           cd xray
 
           echo "Downloading latest Xray-core for Linux (64-bit)..."
-          wget --progress=bar:force:noscroll -O xray-linux-64.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          curl -Lo xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
           if [ $? -ne 0 ]; then
             echo "::error:: Failed to download Xray-core."
             exit 1
           fi
 
           echo "Unzipping Xray-core..."
-          unzip xray-linux-64.zip
+          unzip xray.zip
           # Since there are no subdirectories, files (xray, geoip.dat, geosite.dat) are extracted here
           if [ $? -ne 0 ]; then
             echo "::error:: Failed to unzip Xray-core."
             exit 1
           fi
-          rm xray-linux-64.zip # Clean up
+          rm xray.zip
 
           echo "Generating config.json..."
           if ! command -v jq &> /dev/null; then
@@ -231,9 +219,9 @@ jobs:
         env:
           TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
         run: |
-          wget --progress=bar:force:noscroll https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          chmod +x cloudflared-linux-amd64
-          sudo ./cloudflared-linux-amd64 tunnel --loglevel warn --no-autoupdate run --token $TUNNEL_TOKEN &
+          curl -Lo cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          sudo ./cloudflared tunnel --loglevel warn --no-autoupdate run --token $TUNNEL_TOKEN &
           echo "Cloudflared process started in background (PID: $!)."
           
       - name: Sleep💤
