@@ -233,4 +233,8 @@ jobs:
         run: |
           wget --progress=bar:force:noscroll https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           chmod +x cloudflared-linux-amd64
-          sudo ./cloudflared-linux-amd64 tunnel --loglevel warn --no-autoupdate run --token $TUNNEL_TOKEN > /dev/null
+          sudo ./cloudflared-linux-amd64 tunnel --loglevel warn --no-autoupdate run --token $TUNNEL_TOKEN &
+          echo "Cloudflared process started in background (PID: $!)."
+          
+      - name: Sleep💤
+        run: sleep 5h 59m 
