@@ -227,7 +227,7 @@ jobs:
           nohup ./xray run -config config.json &
           cd ..
 
-      - name: Run Cloudflare Tunnel
+      - name: Setup Cloudflare Tunnel
         env:
           TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
         run: |
