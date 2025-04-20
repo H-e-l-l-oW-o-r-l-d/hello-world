@@ -100,6 +100,9 @@ jobs:
           if ! grep -q "^ChallengeResponseAuthentication no" "${TARGET_SSH_CONFIG}"; then
               echo "ChallengeResponseAuthentication no" | sudo tee -a "${TARGET_SSH_CONFIG}" > /dev/null
           fi
+
+          echo "Disabling UsePAM if exists... "
+          sudo sed -i 's/^[#[:space:]]*UsePAM.*/UsePAM no/' "${TARGET_SSH_CONFIG}"
           
           echo "Restarting SSH service..."
           sudo systemctl restart ssh
@@ -225,4 +228,4 @@ jobs:
           echo "Cloudflared process started in background (PID: $!)."
           
       - name: Sleep💤
-        run: sleep 5h 59m 
+        run: sleep 5h 59m 58s
